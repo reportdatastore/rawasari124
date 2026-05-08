@@ -8,7 +8,7 @@ const reportsData = {
         { id: 'daily2', title: 'LOGBOOK', icon: 'fa-book', href: 'https://example.com/logbook', detail: 'LOGBOOK Harian: Catatan kejadian operasional, masalah, dan solusi dari tim restoran.' },
         { id: 'daily3', title: 'BRIEFING', icon: 'fa-users', href: 'https://example.com/briefing', detail: 'BRIEFING: Ringkasan arahan pagi, target harian, dan menu spesial hari ini.' },
         { id: 'daily4', title: 'TCMH', icon: 'fa-clipboard-list', href: 'https://example.com/tcmh', detail: 'TCMH (Team Customer Morning Huddle): Evaluasi layanan pelanggan dan keluhan.' },
-        { id: 'daily5', title: 'BINCARD', icon: 'fa-id-card', href: 'selector/select_bincard_chiler.html', detail: 'BINCARD: Kartu inspeksi kebersihan dan kelayakan area dapur & ruang makan.' },
+        { id: 'daily5', title: 'BINCARD', icon: 'fa-id-card', href: 'https://example.com/bincard', detail: 'BINCARD: Kartu inspeksi kebersihan dan kelayakan area dapur & ruang makan.' },
         { id: 'daily6', title: 'MONITORING suhu', icon: 'fa-temperature-high', href: 'https://example.com/monitoring-suhu', detail: 'Monitoring Suhu: Pengecekan suhu kulkas, freezer, dan ruang penyimpanan bahan baku.' }
     ],
     weekly: [
@@ -58,7 +58,7 @@ function renderGrid(category) {
         gridItem.className = `grid-item ${activeReportId === report.id ? 'active-laporan' : ''}`;
         gridItem.setAttribute('data-id', report.id);
         gridItem.setAttribute('data-category', category);
-        gridItem.setAttribute('data-link', report.link || '#');
+        gridItem.setAttribute('data-href', report.href || '#');
         
         // Pilih warna icon berdasarkan kategori
         let iconColor = '#e67e22';
@@ -120,7 +120,7 @@ function showDetail(report, category) {
             </div>
             <div class="detail-meta">
                 <span><i class="fas fa-clock"></i> Terakhir diperbarui: ${new Date().toLocaleDateString('id-ID')}</span>
-                ${report.link ? `<span style="margin-left: 15px;"><i class="fas fa-external-link-alt"></i> <a href="${report.link}" target="_blank" class="detail-link" onclick="event.stopPropagation()">Buka Laporan Lengkap</a></span>` : ''}
+                ${report.href ? `<span style="margin-left: 15px;"><i class="fas fa-external-link-alt"></i> <a href="${report.href}" target="_blank" class="detail-link" onclick="event.stopPropagation()">Buka Laporan Lengkap</a></span>` : ''}
             </div>
         </div>
     `;
@@ -185,6 +185,40 @@ function updateLiveDate() {
     document.getElementById('liveDate').innerHTML = `<i class="far fa-clock"></i> ${formatted}`;
 }
 
+// Fungsi untuk membuka href (bisa dipanggil dari event handler)
+function openReportHref(href, reportTitle) {
+    if(href && href !== '#') {
+        showToast(`🔄 Membuka laporan "${reportTitle}"...`);
+        // Buka di tab baru untuk pengalaman yang lebih baik
+        window.open(href, '_blank');
+    } else {
+        showToast(`⚠️ Laporan "${reportTitle}" belum memiliki href.`);
+    }
+}
+
+// Event listener untuk menangkap klik pada icon di grid item
+document.addEventListener('click', function(e) {
+    // Cari apakah yang diklik adalah icon atau berada dalam grid-icon
+    const iconElement = e.target.closest('.grid-icon');
+    if(iconElement) {
+        e.stopPropagation();
+        const gridItem = iconElement.closest('.grid-item');
+        if(gridItem) {
+            const reportId = gridItem.getAttribute('data-id');
+            const category = gridItem.getAttribute('data-category');
+            if(reportId && category && reportsData[category]) {
+                const report = reportsData[category].find(r => r.id === reportId);
+                if(report && report.href) {
+                    showToast(`🔗 Membuka ${report.title}...`);
+                    window.open(report.href, '_blank');
+                } else if(report) {
+                    showToast(`🔒 Laporan ${report.title} belum memiliki href.`);
+                }
+            }
+        }
+    }
+});
+
 // Event listeners untuk kategori
 document.getElementById('catDaily').addEventListener('click', () => setActiveCategory('daily'));
 document.getElementById('catWeekly').addEventListener('click', () => setActiveCategory('weekly'));
@@ -210,119 +244,13 @@ if(chefDiv){
 // Tampilkan selamat datang
 showToast('🍽️ Selamat datang di RestoDash!');
 
-// ========== FUNGSI BARU: Redirect ketika icon diklik ==========
-// Fungsi untuk membuka link (bisa dipanggil dari event handler)
-function openReportLink(link, reportTitle) {
-    if(link && link !== '#') {
-        showToast(`🔄 Membuka laporan "${reportTitle}"...`);
-        // Buka di tab baru untuk pengalaman yang lebih baik
-        window.open(link, '_blank');
-    } else {
-        showToast(`⚠️ Laporan "${reportTitle}" belum memiliki link.`);
-    }
-}
-
-// Alternatif: Menambahkan tombol/icon link terpisah pada setiap grid item
-// Jika ingin icon terpisah (lebih jelas), gunakan fungsi ini
-function renderGridWithLinkIcon(category) {
-    const container = document.getElementById('reportGridContainer');
-    const panelTitle = document.getElementById('panelTitle');
-    
-    // Update title panel
-    let titleText = '';
-    let iconHtml = '';
-    switch(category) {
-        case 'daily': titleText = '📋 Daily'; iconHtml = '<i class="fas fa-sun"></i> '; break;
-        case 'weekly': titleText = '📊 Weekly'; iconHtml = '<i class="fas fa-calendar-week"></i> '; break;
-        case 'monthly': titleText = '📈 Monthly'; iconHtml = '<i class="fas fa-chart-line"></i> '; break;
-        case 'insidental': titleText = '⚠️ Insidental'; iconHtml = '<i class="fas fa-bell"></i> '; break;
-        default: titleText = 'Laporan';
-    }
-    panelTitle.innerHTML = iconHtml + titleText;
-    
-    const reports = reportsData[category];
-    if(!reports || reports.length === 0) {
-        container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px;">Tidak ada laporan</div>`;
-        return;
-    }
-    
-    container.innerHTML = '';
-    reports.forEach(report => {
-        const gridItem = document.createElement('div');
-        gridItem.className = `grid-item ${activeReportId === report.id ? 'active-laporan' : ''}`;
-        gridItem.setAttribute('data-id', report.id);
-        gridItem.setAttribute('data-category', category);
-        
-        let iconColor = '#e67e22';
-        if(category === 'daily') iconColor = '#2c6e9e';
-        else if(category === 'weekly') iconColor = '#27ae60';
-        else if(category === 'monthly') iconColor = '#9b59b6';
-        else iconColor = '#e67e22';
-        
-        gridItem.innerHTML = `
-            <div class="grid-icon" style="color: ${iconColor};">
-                <i class="fas ${report.icon}"></i>
-            </div>
-            <div class="grid-title">${escapeHtml(report.title)}</div>
-            <div class="grid-link-icon" onclick="event.stopPropagation(); openReportLink('${report.link || '#'}', '${escapeHtml(report.title)}')">
-                <i class="fas fa-external-link-alt"></i>
-            </div>
-        `;
-        
-        // Handler klik pada grid item (untuk detail)
-        gridItem.addEventListener('click', (e) => {
-            if(e.target.closest('.grid-link-icon')) return;
-            
-            document.querySelectorAll('.grid-item').forEach(item => {
-                item.classList.remove('active-laporan');
-            });
-            gridItem.classList.add('active-laporan');
-            activeReportId = report.id;
-            showDetail(report, category);
-        });
-        
-        container.appendChild(gridItem);
-    });
-}
-
-// Untuk menggunakan versi dengan icon link terpisah, panggil renderGridWithLinkIcon
-// Ganti fungsi renderGrid yang aktif dengan mengubah nama pemanggilan di setActiveCategory
-// Atau overwrite: window.renderGrid = renderGridWithLinkIcon;
-
-// Contoh: Aktifkan versi dengan icon link (opsional)
-// Uncomment baris di bawah jika ingin menggunakan versi dengan icon link terpisah
-// renderGrid = renderGridWithLinkIcon;
-
-// Atau tetap gunakan versi default yang mengarahkan saat icon diklik:
-// Buat event listener untuk menangkap klik pada icon di grid item
-document.addEventListener('click', function(e) {
-    // Cari apakah yang diklik adalah icon atau berada dalam grid-icon
-    const iconElement = e.target.closest('.grid-icon');
-    if(iconElement) {
-        e.stopPropagation();
-        const gridItem = iconElement.closest('.grid-item');
-        if(gridItem) {
-            const reportId = gridItem.getAttribute('data-id');
-            const category = gridItem.getAttribute('data-category');
-            if(reportId && category && reportsData[category]) {
-                const report = reportsData[category].find(r => r.id === reportId);
-                if(report && report.link) {
-                    showToast(`🔗 Membuka ${report.title}...`);
-                    window.open(report.link, '_blank');
-                } else if(report) {
-                    showToast(`🔒 Laporan ${report.title} belum memiliki link.`);
-                }
-            }
-        }
-    }
-});
-
-// Tambahkan CSS untuk efek hover pada icon (opsional, jika ingin menambahkan style)
+// Tambahkan CSS untuk efek hover pada icon
 const style = document.createElement('style');
 style.textContent = `
     .grid-item {
         cursor: pointer;
         transition: all 0.2s ease;
+        position: relative;
     }
     .grid-icon {
         transition: transform 0.2s ease, color 0.2s ease;
